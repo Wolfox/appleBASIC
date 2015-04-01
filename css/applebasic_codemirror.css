@@ -1,0 +1,52 @@
+
+
+/* ==========================================================================
+   Author's custom styles
+   ========================================================================== */
+
+.cm-s-default span.cm-applebasic-number {
+	color: #66D9EF; /*#66D9EF*/
+}
+
+.cm-s-default span.cm-applebasic-operator {
+	color: #F92772; /*#F92772*/
+}
+
+.cm-s-default span.cm-applebasic-separator {
+	color: #A6E22D; /* TODO CHANGE LATER IF NECESSARY */
+}
+
+.cm-s-default span.cm-applebasic-string {
+	color: #E6DB74; /*#E6DB74*/
+}
+
+.cm-s-default span.cm-applebasic-function {
+	color: #A6E22D; /*#A6E22D*/
+}
+
+.cm-s-default span.cm-applebasic-statement {
+	color: orange; /*orange*/
+}
+
+.cm-s-default span.cm-applebasic-comment {
+	color: #716D5C; /*#716D5C*/
+}
+
+.cm-s-default span.cm-applebasic-unsupported {
+	color: purple; /*purple*/
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
