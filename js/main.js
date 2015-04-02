@@ -31,7 +31,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
 	var program;
 	$('#btnRunProgram').click(function (event) {
-		if(true) {
+		if(false) {
 		try {
 				applebasic.compile(getSource(), codeOutput);
 			} catch(err) {

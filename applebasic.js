@@ -2353,15 +2353,21 @@ this.applebasic = (function() {
   }
 
   basic.compile = function(source, codeOut) {
+
+    //console.log(test.hello());
+
+    //console.log([{type: "Number", value: 2}, {type: "Operator", value: '+'}, {type: "Number", value: 2}]);
+    
     var tokens, lines, tree;
     codeOutput = codeOut;
     //console.log("--------- SOURCE ----------");
     //console.log(source);
     //console.log("--------- TOKENIZER ------------");
     tokens = basic.tokenizer(source);
-    //console.log(tokens);
+    console.log(tokens);
+    test.parseExpr(tokens);
     //console.log("--------- PARSE LINES ------------");
-    lines = basic.divideByLines(tokens);
+    /*lines = basic.divideByLines(tokens);
     tree = basic.ASTparser(lines);
     //console.log(tree);
     //console.log("--------- RUN LINES ------------");
