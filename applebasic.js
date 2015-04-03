@@ -2358,7 +2358,12 @@ this.applebasic = (function() {
 
     //console.log([{type: "Number", value: 2}, {type: "Operator", value: '+'}, {type: "Number", value: 2}]);
     
-    var tokens, lines, tree;
+
+    asdfg = Parsimmon.string(',').skip(Parsimmon.string('a'));
+
+    console.log(asdfg.parse(",b"));
+
+    /*var tokens, lines, tree;
     codeOutput = codeOut;
     //console.log("--------- SOURCE ----------");
     //console.log(source);

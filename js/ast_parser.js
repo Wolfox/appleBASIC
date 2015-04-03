@@ -37,6 +37,12 @@ this.ast_parser = (function() {
     });
   }
 
+  function insertInit(array,value) {
+    var result = array;
+    result.unshift(value);
+    return result;
+  }
+
 
 
 
@@ -78,48 +84,175 @@ this.ast_parser = (function() {
 
 
 
-    function parseDim(tokens) { //DIM var( size [, size ...] ) [, var( size [, size ...] ) ...]
-      var token;
-      var paramVar = [];
-      do {
-        nextToken(tokens);
-        var identf;
-        var varSize = [];
-        identf = parseIdentifier(tokens);
-        token = nextToken(tokens);
-        if(matchValueTokenNot(token,'(')) {
-          throw new SyntaxError('Expecting ( in line ' + parseLinNum);
+
+
+
+  var parseInput = lazy(function() { // INPUT [string ;] var [, var ...]
+    return Parsimmon.seq(
+      parseStatement('INPUT'),
+      parseInputQuestion.or(Parsimmon.success( {type: 'String', value: ""} )),
+      parseIdentifier,
+      parseInputAux).map(function(result) {
+        return {
+          type: 'Input',
+          question: result[1],
+          parameters: insertInit(result[3],result[2])
+        };
+      });
+  });
+
+  var parseInputQuestion = lazy(function() {
+    return Parsimmon.seq(
+      parseUnit(tokenType.Strings, 'String').skip(parseValueToken(';')));
+  });
+
+  var parseInputAux = lazy(function() {
+    return parseComa.then(parseIdentifier).many();
+  });
+
+  var parseGet = lazy(function() { // GET var
+    return Parsimmon.seq(
+      parseStatement('GET'),
+      parseIdentifier).map(function(result) {
+        return {
+          type: 'Get',
+          value: result[1]
+        };
+      });
+  });
+
+  var parsePrint = lazy(function() { // PRINT expr [ [;,] expr ... ] [;]
+    return Parsimmon.seq(
+      parseStatement('PRINT'),
+      parseValue,
+      parsePrintAux.many(),
+      Parsimmon.succeed('').or(parseValueToken(';'))).map(function(result) {
+        return {
+          type: 'Print',
+          parameters: insertInit(result[2], result[1]),
+          isNewline: result[3]
         }
-        varSize.push(parseValue(tokens));
-        token = peekToken(tokens);
-        while (matchValueToken(token, ',')) {
-          nextToken(tokens);
-          varSize.push(parseValue(tokens));
-          token = peekToken(tokens);
+      });
+  });
+
+  var parsePrintAux = lazy(function() {
+    return Parsimmon.seq(
+      Parsimmon.alt(parseValueToken(';'), parseValueToken(','), Parsimmon.success('')),
+      parseValue);
+  });
+
+  var parseOnError = lazy(function() { // ONERR GOTO linenum
+    return Parsimmon.seq(
+      parseStatement('ONERR'),
+      parseStatement('GOTO'),
+      parseValue).map(function(result) {
+        return {
+          type: 'OnErr',
+          expression: result[2]
+        };
+      });
+  });
+
+  var parseOn = lazy(function() { // ON aexpr GOTO linenum [, linenum ...] ----- ON aexpr GOSUB linenum [, linenum ...]
+    return Parsimmon.seq(
+      parseStatement('ON'),
+      parseValue,
+      parseStatement('GOTO').or(parseStatement('GOSUB')),
+      parseValue,
+      parseOnAux).map(function(result) {
+        return {
+          type: 'On',
+          value: result[1],
+          secondOperator: result[2],
+          parameters: insertInit(result[4],result[3])
+        };
+      });
+  });
+
+  var parseOnAux = lazy(function() { return parseComa.then(parseValue).many(); });
+
+  var parseIf = lazy(function() { // IF expr THEN statement ----- IF expr GOTO linenum
+    return Parsimmon.alt(parseIfThen, parseIfGoTo);
+  });
+
+  var parseIfThen = lazy(function() {// IF expr THEN statement
+    return Parsimmon.seq(
+      parseStatement('IF'),
+      parseValue,
+      parseStatement('THEN'),
+      parseStatements).map(function(result) {
+        return {
+          type: 'IfThen',
+          expression: result[1],
+          statement: result[3]
         }
-        if(matchValueTokenNot(token,')')) {
-          throw new SyntaxError('Expecting ) in line ' + parseLinNum);
+      });
+  });
+
+  var parseIfGoTo = lazy(function() {// IF expr GOTO linenum
+    return Parsimmon.seq(
+      parseStatement('IF'),
+      parseValue,
+      parseStatement('GOTO'),
+      parseValue).map(function(result) {
+        return {
+          type: 'IfGoTo',
+          expression: result[1],
+          lineNumber: result[3]
         }
-        paramVar.push({
-          identifier:identf,
-          size: varSize
-        });
-        token = peekToken(tokens);
-      } while (matchValueToken(token, ','));
-      return {
-        type: 'Dim',
-        parameters: paramVar
-      }
-    }
+      });
+  });
+
+  var parseFor = lazy(function() { // FOR var = aexpr TO aexpr [ STEP aexpr ]
+    return Parsimmon.seq(
+      parseStatement('FOR'),
+      parseIdentifier,
+      parseValueToken('='),
+      parseValue,
+      parseStatement('TO'),
+      parseValue,
+      Parsimmon.success('').or(parseForStep)).map(function(result) {
+        return {
+          type: 'For',
+          initVariable: identf,
+          initValue: value1,
+          endValue: value2,
+          step: step
+        };
+      });
+  });
+
+  var parseForStep = lazy(function() {
+    return Parsimmon.seq(
+      parseStatement('Step'),
+      parseValue);
+  });
+
+  var paseNext = lazy(function() { // NEXT [var [, var ...] ]
+    return Parsimmon.seq(
+      parseStatement('NEXT'),
+      Parsimmon.success('').or(parseNextAux)).map(function(result) {
+        return {
+          type: 'Next',
+          parameters: result[1]
+        };
+      });
+  });
+
+  var parseNextAux = lazy(function() {
+    return Parsimmon.seq(parseIdentifier, parseComa.then(parseIdentifier).many()).map(function(result) {
+      return insertInit(result[1], result[0]);
+    });
+  });
 
   var parseDim = lazy(function() { //DIM var( size [, size ...] ) [, var( size [, size ...] ) ...]
     return Parsimmon.seq(
       parseStatement('DIM'),
       parseDimAuxSingle,
-      parseDimAux.many()).map(function() {
+      parseDimAux.many()).map(function(result) {
         return {
           type: 'Dim',
-          parameters: result[2].unshift(result[1])
+          parameters: insertInit(result[2], result[1])
         }
       });
   });
@@ -142,7 +275,7 @@ this.ast_parser = (function() {
   var parseDimSize = lazy(function() {
     return Parsimmon.seq(
       parseDimSizeSingle,
-      parseDimSizeAux.many()).map(function(result) { return result[1].unshift(result[0]); });
+      parseDimSizeAux.many()).map(function(result) { return insertInit(result[1], result[0]); });
   });
 
   var parseDimSizeAux = lazy(function() { return parseComa.then(parseDimSizeSingle); });
@@ -164,11 +297,11 @@ this.ast_parser = (function() {
           name: result[2],
           identifier: result[4],
           expression: result[7]
-        }
-      };
+        };
+      });
   });
 
-  var parseIdentifier = lazy(function() { return parseUnit(tokenType.Identifier, 'Identifier'); };
+  var parseIdentifier = lazy(function() { return parseUnit(tokenType.Identifier, 'Identifier'); });
 
   var parseAssigment = lazy(function() {
     return Parsimmon.seq(parseIdentifier, parseValueToken('='), parseValue);
