@@ -43,12 +43,6 @@ this.ast_parser = (function() {
     return result;
   }
 
-
-
-
-
-
-
   function matchValueToken(token, value) {
     return (token !== undefined && token.value === value);
   }
@@ -87,10 +81,297 @@ this.ast_parser = (function() {
 
 
 
+  function parseLine(line) {
+    //parseLinNum = line.lineNumber;
+    return {
+      lineNumber: line.lineNumber,
+      statement: parseStatements.parse(line.tokens).value
+    };
+  }
+
+  var parseStatements = lazy(function() {
+    return parseMultStatments;
+  });
+
+  var parseSingleStatment = lazy(function() {
+    return Parsimmon.alt(
+      parseAssigment,
+      parseLet,
+      parseStatement0('CLEAR'),
+      parseStatement0('RETURN'),
+      parseStatement0('END'),
+      parseStatement0('STOP'),
+      parseStatement0('POP'),
+      parseStatement0('RESUME'),
+      parseStatement0('HOME'),
+      parseStatement0('INVERSE'),
+      parseStatement0('FLASH'),
+      parseStatement0('NORMAL'),
+      parseStatement0('TEXT'),
+      parseStatement0('GR'),
+      parseStatement0('HGR'),
+      parseStatement0('HGR2'),
+      parseStatement0('RESTORE'),
+      parseStatement0('TRACE'),
+      parseStatement0('NOTRACE'),
+      parseStatement0('CONT'),
+      parseStatement0('DEL'),
+      parseStatement0('LOAD'),
+      parseStatement0('RECALL'),
+      parseStatement0('SAVE'),
+      parseStatement0('STORE'),
+      parseStatement0('SHLOAD'),
+      parseStatement0('NEW'),
+      parseDim,
+      parseDef,
+      parseStatement1('GOTO'),
+      parseStatement1('GOSUB'),
+      parseStatement1('HTAB'),
+      parseStatement1('VTAB'),
+      parseStatement1('COLOR='),
+      parseStatement1('HCOLOR='),
+      parseStatement1('ROT='),
+      parseStatement1('SCALE='),
+      parseStatement1('HIMEM:'),
+      parseStatement1('IN#'),
+      parseStatement1('LOMEM:'),
+      parseStatement1('SPEED='),
+      parseStatement1('CALL'),
+      parseStatement1('PR#'),
+      parseOn,
+      parseOnError,
+      parsePrint,
+      parseInput,
+      parseGet,
+      parsePlot,
+      parseVHLin,
+      parseHPlot,
+      parseData,
+      parseRead,
+      parseRem,
+      parseDraw,
+      parseList,
+      parseRun,
+      parseWait,
+      parsePoke,
+      parseIf,
+      parseFor,
+      parseNext)
+    .or(Parsimmon.succeed(undefined));
+  });
+
+
+  var parseLet = lazy(function() {
+    return parseStatement('LET').then(parseAssigment);
+  });
+
+  var parseRem = lazy(function() {
+    return Parsimmon.seq(parseStatement('REM'), Parsimmon.all).map(function(result) {
+      return {
+        type: 'Comment'
+      };
+    });
+  });
+
+  function parseStatement0(statementName) {
+    return parseStatement(statementName).map(function(result) {
+      return {
+        type: result
+      };
+    });
+  }
+
+  function parseStatement1(statementName) {
+    return Parsimmon.seq(parseStatement(statementName), parseValue).map(function(result) {
+      return {
+        type: result[0],
+        expression: result[1]
+      };
+    });
+  }
+
+  var parseList = lazy(function() { // LIST [ linenum [, linenum ] ]
+    return Parsimmon.seq(
+      parseStatement('LIST'),
+      parseListAux).map(function(result) {
+      return {
+        type: 'List',
+        expression1: result[1][0],
+        expression2: result[1][1][1]
+      };
+    });
+  });
+
+  var parseListAux = lazy(function() {
+    return Parsimmon.seq(
+      parseValue,
+      Parsimmon.seq(
+        parseComa,
+        parseValue)
+      .or(
+        Parsimmon.succeed( [[],[]] )))
+    .or(
+      Parsimmon.succeed( [[],[[],[]]] ));
+  });
+
+  var parseRun = lazy(function() { // RUN [ linenum ]
+    return Parsimmon.seq(
+      parseStatement('RUN'),
+      parseValue.or(Parsimmon.succeed(undefined))).map(function(result) {
+        return {
+          type: 'Run',
+          expression: result[1]
+        };
+      });
+  });
+
+  var parseWait = lazy(function() {// WAIT aexpr, aexpr [, aexpr]
+    return Parsimmon.seq(
+      parseStatement('WAIT'),
+      parseValue,
+      parseComa,
+      parseValue,
+      parseWaitAux.or(Parsimmon.succeed( [[],[]] ))).map(function(result) {
+        return {
+          type: 'Wait',
+          expression1: result[1],
+          expression2: result[3],
+          expression3: result[4][1]
+        };
+      });
+  });
+
+  var parseWaitAux = lazy(function() {
+    return Parsimmon.seq(parseComa, parseValue);
+  })
+
+  var parsePoke = lazy(function() { // POKE aexpr, aexpr
+    return Parsimmon.seq(
+      parseStatement('POKE'),
+      parseValue,
+      parseComa,
+      parseValue).map(function(result) {
+        return {
+          type: 'Poke',
+          expression1: result[1],
+          expression2: result[3]
+        };
+      });
+  });
+
+  var parseDraw = lazy(function() { // DRAW aexpr [ AT aexpr, aexpr ] ----- XDRAW aexpr [ AT aexpr, aexpr ]
+    return Parsimmon.seq(
+      parseDrawType,
+      parseValue,
+      parseDrawAux.or(Parsimmon.succeed( [[],[],[],[]] ))).map(function(result) {
+        return {
+          type: result[0],
+          expression1: result[1],
+          expression2: result[2][1],
+          expression3: result[2][3]
+        };
+      });
+  });
+
+  var parseDrawAux = lazy(function() {
+    return Parsimmon.seq(
+      parseStatement('AT'),
+      parseValue,
+      parseComa,
+      parseValue);
+  });
+
+  var parseDrawType = lazy(function() {
+    return Parsimmon.alt(parseStatement('DRAW'), parseStatement('XDRAW'));
+  });
+
+  var parseRead = lazy(function() { // READ var [, var ...]
+    return Parsimmon.seq(
+      parseStatement('READ'),
+      parseIdentifier,
+      parseComa.then(parseIdentifier).many()).map(function(result) {
+        return {
+          type: 'Read',
+          parameters: insertInit(result[2], result[1])
+        };
+      });
+  });
+
+  var parseData = lazy(function() { // DATA value [, value ...]
+    return Parsimmon.seq(
+      parseStatement('DATA'),
+      parseValue,
+      parseComa.then(parseValue).many()).map(function(result) {
+        return {
+          type: 'Data',
+          parameters: insertInit(result[2], result[1])
+        };
+      });
+  });
+
+  var parseHPlot = lazy(function() { // HPLOT [TO] aexpr, aexpr [ TO aexpr, aexpr ] ...
+    return Parsimmon.seq(
+      parseStatement('HPLOT'),
+      parseStatement('TO').or(Parsimmon.succeed('')),
+      parseValue,
+      parseComa,
+      parseValue,
+      parseHPlotAux.or(Parsimmon.succeed( [[],[],[],[]] ))).map(function(result) {
+        return {
+          type: 'HPlot',
+          expression1 : result[2],
+          expression2 : result[4],
+          expression3 : result[5][1],
+          expression4 : result[5][3]
+        };
+      });
+  });
+
+  var parseHPlotAux = lazy(function() {
+    return Parsimmon.seq(
+      parseStatement('TO'),
+      parseValue,
+      parseValue);
+  });
+
+  var parseVHLin = lazy(function() { // HLIN aexpr, aexpr AT aexpr ------ VLIN aexpr, aexpr AT aexpr
+    return Parsimmon.seq(
+      parseVHLinType,
+      parseValue,
+      parseComa,
+      parseValue,
+      parseStatement('AT'),
+      parseValue).map(function(result) {
+        return {
+        type: result[0],
+        expression1: result[1],
+        expression2: result[3],
+        expression3: result[5]
+        };
+      });
+  });
+
+  var parseVHLinType = lazy(function() {
+    return Parsimmon.alt(parseStatement('HLIN'), parseStatement('VLIN'));
+  });
+
+  var parsePlot = lazy(function() { // PLOT aexpr, aexpr
+    return Parsimmon.seq(parseStatement('PLOT'),
+    parseValue,
+    parseComa,
+    parseValue).map(function(result) {
+      return {
+        type: result[0],
+        expression1: result[1],
+        expression2: result[3]
+      };
+    });
+  });
+
   var parseInput = lazy(function() { // INPUT [string ;] var [, var ...]
     return Parsimmon.seq(
       parseStatement('INPUT'),
-      parseInputQuestion.or(Parsimmon.success( {type: 'String', value: ""} )),
+      parseInputQuestion.or(Parsimmon.succeed( {type: 'String', value: ""} )),
       parseIdentifier,
       parseInputAux).map(function(result) {
         return {
@@ -123,7 +404,7 @@ this.ast_parser = (function() {
 
   var parsePrint = lazy(function() { // PRINT expr [ [;,] expr ... ] [;]
     return Parsimmon.seq(
-      parseStatement('PRINT'),
+      parseStatement('PRINT').or(parseStatement('?')),
       parseValue,
       parsePrintAux.many(),
       Parsimmon.succeed('').or(parseValueToken(';'))).map(function(result) {
@@ -137,7 +418,7 @@ this.ast_parser = (function() {
 
   var parsePrintAux = lazy(function() {
     return Parsimmon.seq(
-      Parsimmon.alt(parseValueToken(';'), parseValueToken(','), Parsimmon.success('')),
+      Parsimmon.alt(parseValueToken(';'), parseValueToken(','), Parsimmon.succeed('')),
       parseValue);
   });
 
@@ -211,7 +492,9 @@ this.ast_parser = (function() {
       parseValue,
       parseStatement('TO'),
       parseValue,
-      Parsimmon.success('').or(parseForStep)).map(function(result) {
+      Parsimmon.succeed( {type: 'Number', value: 1} )
+      .or(parseForStep))
+    .map(function(result) {
         return {
           type: 'For',
           initVariable: identf,
@@ -228,10 +511,10 @@ this.ast_parser = (function() {
       parseValue);
   });
 
-  var paseNext = lazy(function() { // NEXT [var [, var ...] ]
+  var parseNext = lazy(function() { // NEXT [var [, var ...] ]
     return Parsimmon.seq(
       parseStatement('NEXT'),
-      Parsimmon.success('').or(parseNextAux)).map(function(result) {
+      Parsimmon.succeed([]).or(parseNextAux)).map(function(result) {
         return {
           type: 'Next',
           parameters: result[1]
@@ -304,7 +587,13 @@ this.ast_parser = (function() {
   var parseIdentifier = lazy(function() { return parseUnit(tokenType.Identifier, 'Identifier'); });
 
   var parseAssigment = lazy(function() {
-    return Parsimmon.seq(parseIdentifier, parseValueToken('='), parseValue);
+    return Parsimmon.seq(parseIdentifier, parseValueToken('='), parseValue).map(function(result) {
+      return {
+        type: 'Assigment',
+        identifier: result[0],
+        value: result[2]
+      }
+    });
   });
 
   var parseMultStatments = lazy(function() {
@@ -531,19 +820,16 @@ this.ast_parser = (function() {
       };
   });
 
+  parser.parse = function(lines) {
 
+    var ASTree = [];
 
+    for(var iLine = 0; iLine < lines.length; iLine++) {
+      ASTree.push(parseLine(lines[iLine]));
+    }
 
-
-
-
-
-  var parseExp = Parsimmon.seq(parseLineNumber, parseValue);
-
-  parser.parseExpr = function(exp) {
-    console.log(parseExp.parse(exp));
+    return ASTree;
   }
-
 
   return parser;
 
