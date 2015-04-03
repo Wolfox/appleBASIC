@@ -802,14 +802,18 @@ this.ast_parser = (function() {
   });
 
   parser.parse = function(lines) {
-
-    var ASTree = [];
-
-    for(var iLine = 0; iLine < lines.length; iLine++) {
-      ASTree.push(parseLine(lines[iLine]));
-    }
-
+    var ASTree = parseAux(0,lines);
     return ASTree;
+  }
+
+  function parseAux(index,lines) {
+    if(!(index < lines.length)) {
+      return [];
+    }
+    var thisVal = parseLine(lines[index]);
+    var returnVal = parseAux(index+1,lines);
+    returnVal.unshift(thisVal);
+    return returnVal;
   }
 
   return parser;

@@ -77,7 +77,7 @@ this.runner = (function() {
   }
 
   run.run = function(tree) {
-    //console.log(tree);
+
     var indexI;
     var runLinNum;
 
@@ -97,7 +97,6 @@ this.runner = (function() {
     }
 
     function runType(expr) {
-      //console.log(expr);
 
       if(GoToFLAG !== undefined || EndFLAG || InputFLAG !== undefined) {
         return;
@@ -758,7 +757,6 @@ this.runner = (function() {
     }
 
     function runPrint(param) {
-      console.log(param);
       if(param.length === 0) {
         basic.addOutput('\n');
       } else {
@@ -768,6 +766,20 @@ this.runner = (function() {
       }
     }
 
+    function findIndexonTree(lineSearch) {
+      return findIndexOnTreeAux(0,lineSearch);
+    }
+
+    function findIndexOnTreeAux(index,lineSearch) {
+      if(!(index < tree.length)) {
+        return undefined;
+      }
+      if(tree[index].lineNumber === lineSearch) {
+        return index;
+      }
+      return findIndexOnTreeAux(index+1, lineSearch);
+    }
+
     function runGoTo(exp) {
       var result = undefined;
 
@@ -775,19 +787,12 @@ this.runner = (function() {
         throw 'expected lineNumber, in line ' + runLinNum;
       }
 
-      for(var i = 0; i < tree.length; i++) {
-        if(tree[i].lineNumber === exp.value) {
-          result = i;
-          break;
-        }
-      }
+      result = findIndexonTree(exp.value);
 
-      if(result !== undefined) {
-        GoToFLAG = result;
-      } else {
+      if(result === undefined) {
         throw 'line number not defined, in line ' + runLinNum;
-        GoToFLAG = tree.length;
       }
+      GoToFLAG = result;
     }
 
     function runGoSub(exp) {
@@ -797,20 +802,13 @@ this.runner = (function() {
         throw 'expected lineNumber, in line ' + runLinNum;
       }
 
-      for(var i = 0; i < tree.length; i++) {
-        if(tree[i].lineNumber === exp.value) {
-          result = i;
-          break;
-        }
-      }
+      result = findIndexonTree(exp.value);
 
-      if(result !== undefined) {
-        GoSubFLAG.push(indexI);
-        GoToFLAG = result;
-      } else {
+      if(result === undefined) {
         throw 'line number not defined, in line ' + runLinNum;
-        GoToFLAG = tree.length;
       }
+      GoSubFLAG.push(indexI);
+      GoToFLAG = result;
     }
 
     function runClear() {
@@ -1035,8 +1033,6 @@ this.runner = (function() {
       var val;
       val = runType(exp);
 
-      console.log(val);
-
       if(!matchTypeToken(val, 'Number')) {
         throw 'expected number, in line ' + runLinNum;
       }
@@ -1102,23 +1098,25 @@ this.runner = (function() {
 
     }
 
-    function runTree(start) {
-      for(var i = start; i < tree.length; i++) {
-        indexI = i;
-        runLinNum = tree[i].lineNumber;
-        if(TraceFLAG) {
-          basic.addOutput('#' + runLinNum + ' ');
-        }
-        runStatement(tree[i].statement);
-        if(GoToFLAG !== undefined) {
-          i = GoToFLAG-1;
-          GoToFLAG = undefined;
-        }
-
-        if ( EndFLAG || InputFLAG !== undefined) {
-          return;
-        }
+    function runTree(index) {
+      if(!(index < tree.length)) {
+        return;
       }
+      indexI = index;
+      runLinNum = tree[index].lineNumber;
+      if(TraceFLAG) {
+        basic.addOutput('#' + runLinNum + ' ');
+      }
+      runStatement(tree[index].statement);
+      if(GoToFLAG !== undefined) {
+        index = GoToFLAG-1;
+        GoToFLAG = undefined;
+      }
+
+      if ( EndFLAG || InputFLAG !== undefined) {
+        return;
+      }
+      runTree(index+1);
     }
 
     runTree(0);
