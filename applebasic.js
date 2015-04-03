@@ -117,186 +117,191 @@ this.applebasic = (function() {
     return (token === undefined || token.type !== type);
   }
 
+  var reservedKeywords = ["CLEAR", "LET", "DIM", "DEF", "GOTO", "GOSUB", "RETURN",
+                      "ONERR", "ON", "POP", "FOR", "TO", "STEP", "NEXT", "IF", "THEN", "END",
+                      "STOP", "RESUME", "PRINT", "INPUT", "GET", "HOME", "HTAB", "VTAB",
+                      "INVERSE", "FLASH", "NORMAL", "TEXT", "GR", "COLOR\\\=", "PLOT",
+                      "HLIN", "VLIN", "HGR2", "HGR", "HPLOT", "HCOLOR\\\=", "DATA", "READ",
+                      "RESTORE","REM", "TRACE", "NOTRACE", "ROT\\\=", "SCALE\\\=", "DRAW",
+                      "XDRAW", "CONT", "DEL","LIST", "NEW", "RUN", "HIMEM\\\:", "IN\\\#",
+                      "LOMEM\\\:", "WAIT", "LOAD", "RECALL", "SAVE", "STORE", "SHLOAD",
+                      "SPEED\\\=", "POKE", "CALL", "PR\\\#", "ABS", "ASC", "ATN", "AT",
+                      "COS", "EXP", "INT", "LOG", "RND", "SGN", "SIN", "SQR", "TAN", "PEEK",
+                      "FN", "LEN", "LEFT\\\$", "MID\\\$", "RIGHT\\\$", "CHR\\\$", "STR\\\$", "VAL",
+                      "FRE", "PDL", "POS", "SCRN", "HSCRN", "USR", "AND", "OR", "NOT", "\\\?"];
+
+  // TYPE OF TOKENS:
+  var regexLineNumber = /^[0-9]+/, // linenumber   - start of a new line
+      regexSeparator = /^:/, // separator    - separates statements on the same line
+      regexReservedKeyword = new RegExp("^(" + reservedKeywords.join("|") + ")", "i"), // reserved     - reserved keywords
+      regexIdentifier = /^([A-Za-z][A-Za-z0-9]?)[A-Za-z0-9]*(\$|%)?/, // identifier   - variable name
+      regexString = /^"([^"]*?)(?:"|(?=\n|\r|$))/, // string       - string
+      regexNumber = /^[-+]?\d*\.?\d+([eE][-+]?\d+)?/, // number       - number
+      regexOperator = /^[;=<>+\-*\/\^(),]/, // operator     - operator
+      regexWhiteSpace = /^[ \t]+/,
+      regexNewline = /^\r?\n//*,
+      regexAnything = /^./*/;
+
   basic.tokenizer = function(source) {
-    var reservedKeywords = ["CLEAR", "LET", "DIM", "DEF", "GOTO", "GOSUB", "RETURN",
-                        "ONERR", "ON", "POP", "FOR", "TO", "STEP", "NEXT", "IF", "THEN", "END",
-                        "STOP", "RESUME", "PRINT", "INPUT", "GET", "HOME", "HTAB", "VTAB",
-                        "INVERSE", "FLASH", "NORMAL", "TEXT", "GR", "COLOR\\\=", "PLOT",
-                        "HLIN", "VLIN", "HGR2", "HGR", "HPLOT", "HCOLOR\\\=", "DATA", "READ",
-                        "RESTORE","REM", "TRACE", "NOTRACE", "ROT\\\=", "SCALE\\\=", "DRAW",
-                        "XDRAW", "CONT", "DEL","LIST", "NEW", "RUN", "HIMEM\\\:", "IN\\\#",
-                        "LOMEM\\\:", "WAIT", "LOAD", "RECALL", "SAVE", "STORE", "SHLOAD",
-                        "SPEED\\\=", "POKE", "CALL", "PR\\\#", "ABS", "ASC", "ATN", "AT",
-                        "COS", "EXP", "INT", "LOG", "RND", "SGN", "SIN", "SQR", "TAN", "PEEK",
-                        "FN", "LEN", "LEFT\\\$", "MID\\\$", "RIGHT\\\$", "CHR\\\$", "STR\\\$", "VAL",
-                        "FRE", "PDL", "POS", "SCRN", "HSCRN", "USR", "AND", "OR", "NOT", "\\\?"];
-    var parsedSource = source,
-        lastReadedValue, newline = true,
-        tokens = [];
 
-    // TYPE OF TOKENS:
-    var regexLineNumber = /^[0-9]+/, // linenumber   - start of a new line
-        regexSeparator = /^:/, // separator    - separates statements on the same line
-        regexReservedKeyword = new RegExp("^(" + reservedKeywords.join("|") + ")", "i"), // reserved     - reserved keywords
-        regexIdentifier = /^([A-Za-z][A-Za-z0-9]?)[A-Za-z0-9]*(\$|%)?/, // identifier   - variable name
-        regexString = /^"([^"]*?)(?:"|(?=\n|\r|$))/, // string       - string
-        regexNumber = /^[-+]?\d*\.?\d+([eE][-+]?\d+)?/, // number       - number
-        regexOperator = /^[;=<>+\-*\/\^(),]/, // operator     - operator
-        regexWhiteSpace = /^[ \t]+/,
-        regexNewline = /^\r?\n//*,
-        regexAnything = /^./*/;
-
-    function sourceHasEnded() {
-      return parsedSource.length === 0;
-    }
-
-    function readSource(regex) {
-      var read = parsedSource.match(regex);
-
-      //console.log("read" + read);
-
-      if(read) {
-        parsedSource = parsedSource.substr(read[0].length); // remove the identified token
-        lastReadedValue = read;
-        return read;
-      }
-
-      return (void 0); // return undefined
-    }
-
-    var getNextToken = function() {
-
-      while(readSource(regexWhiteSpace)); // {console.log("SPAAAAAACE!!!!");}
-
-      if(sourceHasEnded()) {
-        return false;
-      }
-
-      if(readSource(regexNewline)) {
-        newline = true;
-        return createToken(lastReadedValue[0], tokenType.NewLine);
-      }
-
-      if(newline) {
-        if(readSource(regexLineNumber)) {
-          newline = false;
-          return createToken(Number(lastReadedValue[0]), tokenType.LineNumber);
-        }
-        newline = false;
-      }
-
-      if(readSource(regexReservedKeyword)) {
-        return createToken(lastReadedValue[0].toUpperCase(), tokenType.ReservedKeyword);
-      }
-
-      if(readSource(regexIdentifier)) {
-        return createToken(lastReadedValue[0], tokenType.Identifier);
-      }
-
-      if(readSource(regexString)) {
-        return createToken(lastReadedValue[1], tokenType.Strings);
-      }
-
-      if(readSource(regexNumber)) {
-        return createToken(parseFloat(lastReadedValue[0]), tokenType.Numbers);
-      }
-
-      if(readSource(regexOperator)) {
-        return createToken(lastReadedValue[0], tokenType.Operator);
-      }
-
-      if(readSource(regexSeparator)) {
-        return createToken(lastReadedValue[0], tokenType.Separator);
-      }
-
-      //throw new SyntaxError("Something is very wrong!");
-      return token;
-    }
-
-    nxtToken = getNextToken();
-
-    while(nxtToken) {
-      tokens.push(nxtToken);
-      nxtToken = getNextToken();
-    }
-
-    return tokens;
+    var tokens = [];
+    tokens = createTokens(source, true, []);
+    console.log(tokens);
+    //basic.divideByLines(tokens);
   }
 
-  function sortingLines(lines) {
-    for(i=0; i < lines.length; i++) {
-      for(j=i; j < lines.length; j++) {
-        if(lines[j].lineNumber < lines[i].lineNumber) {
-          tempLine = lines[i];
-          lines[i] = lines[j];
-          lines[j] = tempLine;
-        }
+  function createTokens(source, isNewLine, returnVal) {
+    var nxtToken = getNextToken(source, isNewLine);
+    if(!nxtToken) {
+      return returnVal;
+    }
+    source = nxtToken[1];
+    returnVal.push(nxtToken[0]);
+    return createTokens(source, nxtToken[0].type === tokenType.NewLine ,returnVal);
+  }
+
+  function getNextToken(source, isNewLine) {
+    var read, token;
+
+    source = ignoreWhiteSpaces(source);
+
+    if(sourceHasEnded(source)) {
+      return false;
+    }
+
+    read = readSource(source, regexNewline);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0], tokenType.NewLine);
+      return [token, source];
+    }
+
+    if(isNewLine) {
+      read = readSource(source, regexLineNumber);
+      if(read[0]) {
+        source = read[1];
+        token = createToken(Number(read[0]), tokenType.LineNumber);
+        return [token, source];
       }
     }
-    return lines;
+
+    read = readSource(source, regexReservedKeyword);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0].toUpperCase(), tokenType.ReservedKeyword);
+      return [token, source];
+    }
+
+    read = readSource(source, regexIdentifier);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0], tokenType.Identifier);
+      return [token, source];
+    }
+
+    read = readSource(source, regexString);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0], tokenType.Strings);
+      return [token, source];
+    }
+
+    read = readSource(source, regexNumber);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(parseFloat(read[0]), tokenType.Numbers);
+      return [token, source];
+    }
+
+    read = readSource(source, regexOperator);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0], tokenType.Operator);
+      return [token, source];
+    }
+
+    read = readSource(source, regexSeparator);
+    if(read[0]) {
+      source = read[1];
+      token = createToken(read[0], tokenType.Separator);
+      return [token, source];
+    }
+
+    console.log("ERROR");
+    return false;
+  }
+
+  function ignoreWhiteSpaces(source) {
+    var read = readSource(source, regexWhiteSpace);
+    if(read[0]) {
+      return ignoreWhiteSpaces(read[1]);
+    }
+    return source;
+  }
+
+  function readSource(source, regex) {
+    var read = source.match(regex);
+
+    if(read) {
+      source = source.substr(read[0].length); // remove the identified token
+      return [read[0], source];
+    }
+
+    return [undefined, source];
+  }
+
+  function sourceHasEnded(source) {
+    return source.length === 0;
   }
 
   basic.divideByLines = function(tokens) {
-    var lines = [],
-        newline = true;
+    var lines = createLines(tokens,[],[]);
 
-    for( i=0 ; i < tokens.length; i++) {
-      if(tokens[i].type === tokenType.NewLine) continue;
+    lines.sort(function(a,b) {
+      return a.lineNumber - b.lineNumber;
+    });
 
-      var line = createLine(0,[]);
+    basic.ASTparser(lines);
+  }
 
-      if(tokens[i].type === tokenType.LineNumber) {
-        line.lineNumber = tokens[i].value;
-        i++
-        while(i < tokens.length && tokens[i].type != tokenType.NewLine) {
-          line.tokens.push(tokens[i]);
-          i++;
-        }
-        lines.push(line);
-      } else {
-        throw new SyntaxError("Expected line number");
+  function createLines(allTokens, toCreate, returnVal) {
+    if(allTokens.length === 0) {
+      if(toCreate.length > 0) {
+        returnVal.push(createSingleLine(toCreate));
+        toCreate = [];
       }
-      
+      return returnVal;
     }
+    var head = allTokens.shift();
+    if(head.type === tokenType.NewLine) {
+      if(toCreate.length > 0) {
+        returnVal.push(createSingleLine(toCreate));
+        toCreate = [];
+      }
+    } else {
+      toCreate.push(head);
+    }
+    return createLines(allTokens,toCreate,returnVal);
+  }
 
-    lines = sortingLines(lines);
+  function createSingleLine(tokenList) {
+    if(tokenList[0].type !== tokenType.LineNumber) {
+      throw new SyntaxError("Expected line number");
+    }
+    return createLine(tokenList.shift().value, tokenList); //TODO: change head
+  }
 
-    return lines;
+  basic.ASTparser = function(lines) {
+    var tree = ast_parser.parse(lines);
+    console.log(tree);
+    //basic.run(tree);
   }
 
   basic.compile = function(source, codeOut) {
-
-    //console.log(test.hello());
-
-    //console.log([{type: "Number", value: 2}, {type: "Operator", value: '+'}, {type: "Number", value: 2}]);
-    
-
-    /*asdfg = Parsimmon.string(',').skip(Parsimmon.string('a'));
-
-    console.log(asdfg.parse(",b"));*/
-
-    var tokens, lines, tree;
     codeOutput = codeOut;
-    //console.log("--------- SOURCE ----------");
-    //console.log(source);
-    //console.log("--------- TOKENIZER ------------");
     tokens = basic.tokenizer(source);
-    //console.log(tokens);
-    //ast_parser.parseExpr(tokens);
-    //console.log("--------- PARSE LINES ------------");
-    lines = basic.divideByLines(tokens);
-    console.log(lines);
-    tree = ast_parser.parse(lines)
-    console.log(tree);
-    /*//console.log("--------- RUN LINES ------------");
-    //try {
-      basic.run(tree);
-    /*} catch(err) {
-      alert(err);
-    }*/
-
-    return null;
   }
+
 
   function addOutput(output) {
     if(codeOutput) {
