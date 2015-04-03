@@ -2,6 +2,80 @@ this.runner = (function() {
 
   run = {};
 
+  function matchValueToken(token, value) {
+    return (token !== undefined && token.value === value);
+  }
+
+  function matchTypeToken(token, type) {
+    return (token !== undefined && token.type === type);
+  }
+
+  var variables = [];
+  var functions = [];
+
+  function getVariable(nam) {
+    for(var i=0;i<variables.length; i++) {
+      if(variables[i].map === nam) {
+        return variables[i].val;
+      }
+    }
+    return 0;
+  }
+
+  function setVariable(nam,va) {
+    for(var i=0; i<variables.length; i++) {
+      if(variables[i].map === nam) {
+        variables[i].val = va;
+        return true;
+      }
+    }
+    var variable = {
+      map:nam,
+      val:va
+    }
+    variables.push(variable);
+    return true;
+  }
+
+  function clearVariables() {
+    variables = [];
+  }
+
+  function getFunction(nam) {
+    for(var i=0;i<functions.length; i++) {
+      if(functions[i].name === nam) {
+        return functions[i];
+      }
+    }
+    return undefined;
+  }
+
+  function setFunctions(nam, ident, expr) {
+    for(var i=0; i<functions.length; i++) {
+      if(functions[i].name === nam) {
+        functions[i].identifier = ident;
+        functions[i].expression = expr;
+        return true;
+      }
+    }
+    var fVariable = {
+      name:nam,
+      identifier: ident,
+      expression: expr
+    }
+    functions.push(fVariable);
+    return true;
+  }
+
+  function clearFunctions() {
+    functions = [];
+  }
+
+  run.clearAll = function() {
+    clearVariables();
+    clearFunctions();
+  }
+
   run.run = function(tree) {
     //console.log(tree);
     var indexI;
@@ -684,19 +758,19 @@ this.runner = (function() {
     }
 
     function runPrint(param) {
-      var result = "";
-      for(var i = 0; i < param.length; i++) {
-        var value;
-        value = runType(param[i]);
-        result = result + (value.value).toString();
+      console.log(param);
+      if(param.length === 0) {
+        basic.addOutput('\n');
+      } else {
+        var value = runType(param.shift());
+        basic.addOutput((value.value).toString());
+        runPrint(param);
       }
-      addOutput(result + '\n');
     }
 
     function runGoTo(exp) {
       var result = undefined;
 
-      //console.log(exp);
       if(exp.value < 0 || ((exp.value)%1) !== 0) {
         throw 'expected lineNumber, in line ' + runLinNum;
       }
@@ -790,7 +864,7 @@ this.runner = (function() {
     }
 
     function runHome() {
-      clearOutput();
+      basic.clearOutput();
     }
 
     function runLeft(exprStr, exprVal) {
@@ -852,18 +926,21 @@ this.runner = (function() {
         throw 'expected number, in line ' + runLinNum;
       }
 
-      result = "";
-      for(var i = 0; i < ((str.value).length-start.value+1) && i < end.value; i++) {
-        var j = i + start.value;
-        if(j > 0){
-          result += (str.value)[j-1];
-        }
-      }
-
       return {
         type: 'String',
-        value: result
+        value: runMidAux(0,str,start,end,"")
       };
+    }
+
+    function runMidAux(i,str,start,end,result) {
+      if(!(i < ((str.value).length-start.value+1) && i < end.value)) {
+        return result;
+      }
+      var j = i + start.value;
+      if(j > 0){
+        result += (str.value)[j-1];
+      }
+      return runMidAux(i+1,str,start,end,result);
     }
 
     function runReturn() {
@@ -1030,7 +1107,7 @@ this.runner = (function() {
         indexI = i;
         runLinNum = tree[i].lineNumber;
         if(TraceFLAG) {
-          addOutput('#' + runLinNum + ' ');
+          basic.addOutput('#' + runLinNum + ' ');
         }
         runStatement(tree[i].statement);
         if(GoToFLAG !== undefined) {

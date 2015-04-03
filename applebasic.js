@@ -26,67 +26,6 @@ this.applebasic = (function() {
     NewLine: "NewLine"
   };
 
-  var variables = [];
-  var functions = [];
-
-  function getVariable(nam) {
-    for(var i=0;i<variables.length; i++) {
-      if(variables[i].map === nam) {
-        return variables[i].val;
-      }
-    }
-    return 0;
-  }
-
-  function setVariable(nam,va) {
-    for(var i=0; i<variables.length; i++) {
-      if(variables[i].map === nam) {
-        variables[i].val = va;
-        return true;
-      }
-    }
-    var variable = {
-      map:nam,
-      val:va
-    }
-    variables.push(variable);
-    return true;
-  }
-
-  function clearVariables() {
-    variables = [];
-  }
-
-  function getFunction(nam) {
-    for(var i=0;i<functions.length; i++) {
-      if(functions[i].name === nam) {
-        return functions[i];
-      }
-    }
-    return undefined;
-  }
-
-  function setFunctions(nam, ident, expr) {
-    for(var i=0; i<functions.length; i++) {
-      if(functions[i].name === nam) {
-        functions[i].identifier = ident;
-        functions[i].expression = expr;
-        return true;
-      }
-    }
-    var fVariable = {
-      name:nam,
-      identifier: ident,
-      expression: expr
-    }
-    functions.push(fVariable);
-    return true;
-  }
-
-  function clearFunctions() {
-    functions = [];
-  }
-
   function createToken(value, type) {
     return {
       value:value,
@@ -99,22 +38,6 @@ this.applebasic = (function() {
         lineNumber: linNum,
         tokens: tokens
       };
-  }
-
-  function matchValueToken(token, value) {
-    return (token !== undefined && token.value === value);
-  }
-
-  function matchTypeToken(token, type) {
-    return (token !== undefined && token.type === type);
-  }
-
-  function matchValueTokenNot(token, value) {
-    return (token === undefined || token.value !== value);
-  }
-
-  function matchTypeTokenNot(token, type) {
-    return (token === undefined || token.type !== type);
   }
 
   var reservedKeywords = ["CLEAR", "LET", "DIM", "DEF", "GOTO", "GOSUB", "RETURN",
@@ -146,8 +69,7 @@ this.applebasic = (function() {
 
     var tokens = [];
     tokens = createTokens(source, true, []);
-    console.log(tokens);
-    //basic.divideByLines(tokens);
+    basic.divideByLines(tokens);
   }
 
   function createTokens(source, isNewLine, returnVal) {
@@ -170,70 +92,69 @@ this.applebasic = (function() {
     }
 
     read = readSource(source, regexNewline);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0], tokenType.NewLine);
+      token = createToken(read[0][0], tokenType.NewLine);
       return [token, source];
     }
 
     if(isNewLine) {
       read = readSource(source, regexLineNumber);
-      if(read[0]) {
+      if(read) {
         source = read[1];
-        token = createToken(Number(read[0]), tokenType.LineNumber);
+        token = createToken(Number(read[0][0]), tokenType.LineNumber);
         return [token, source];
       }
     }
 
     read = readSource(source, regexReservedKeyword);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0].toUpperCase(), tokenType.ReservedKeyword);
+      token = createToken(read[0][0].toUpperCase(), tokenType.ReservedKeyword);
       return [token, source];
     }
 
     read = readSource(source, regexIdentifier);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0], tokenType.Identifier);
+      token = createToken(read[0][0], tokenType.Identifier);
       return [token, source];
     }
 
     read = readSource(source, regexString);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0], tokenType.Strings);
+      token = createToken(read[0][1], tokenType.Strings);
       return [token, source];
     }
 
     read = readSource(source, regexNumber);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(parseFloat(read[0]), tokenType.Numbers);
+      token = createToken(parseFloat(read[0][0]), tokenType.Numbers);
       return [token, source];
     }
 
     read = readSource(source, regexOperator);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0], tokenType.Operator);
+      token = createToken(read[0][0], tokenType.Operator);
       return [token, source];
     }
 
     read = readSource(source, regexSeparator);
-    if(read[0]) {
+    if(read) {
       source = read[1];
-      token = createToken(read[0], tokenType.Separator);
+      token = createToken(read[0][0], tokenType.Separator);
       return [token, source];
     }
 
-    console.log("ERROR");
     return false;
   }
 
   function ignoreWhiteSpaces(source) {
     var read = readSource(source, regexWhiteSpace);
-    if(read[0]) {
+    if(read) {
       return ignoreWhiteSpaces(read[1]);
     }
     return source;
@@ -244,10 +165,10 @@ this.applebasic = (function() {
 
     if(read) {
       source = source.substr(read[0].length); // remove the identified token
-      return [read[0], source];
+      return [read, source];
     }
 
-    return [undefined, source];
+    return undefined;
   }
 
   function sourceHasEnded(source) {
@@ -288,13 +209,12 @@ this.applebasic = (function() {
     if(tokenList[0].type !== tokenType.LineNumber) {
       throw new SyntaxError("Expected line number");
     }
-    return createLine(tokenList.shift().value, tokenList); //TODO: change head
+    return createLine(tokenList.shift().value, tokenList);
   }
 
   basic.ASTparser = function(lines) {
     var tree = ast_parser.parse(lines);
-    console.log(tree);
-    //basic.run(tree);
+    runner.run(tree);
   }
 
   basic.compile = function(source, codeOut) {
@@ -303,7 +223,7 @@ this.applebasic = (function() {
   }
 
 
-  function addOutput(output) {
+  basic.addOutput = function(output) {
     if(codeOutput) {
       codeOutput.setValue(codeOutput.getValue()+output);
     } else {
@@ -311,7 +231,7 @@ this.applebasic = (function() {
     }
   }
 
-  function clearOutput() {
+  basic.clearOutput = function() {
     if(codeOutput) {
       codeOutput.setValue("");
     } else {

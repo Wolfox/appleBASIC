@@ -1,8 +1,33 @@
 this.ast_parser = (function() {
-
   parser = {};
 
   var lazy = Parsimmon.lazy;
+
+  var tokenType = {
+    LineNumber: "LineNumber",
+    Separator: "Separator",
+    ReservedKeyword: "ReservedKeyword",
+    Identifier: "Identifier",
+    Strings: "Strings",
+    Numbers: "Numbers",
+    Operator: "Operator",
+    WhiteSpace: "WhiteSpace",
+    NewLine: "NewLine"
+  }
+   
+ function matchValueToken(token, value) {
+    return (token !== undefined && token.value === value);
+  }
+
+  function matchTypeToken(token, type) {
+    return (token !== undefined && token.type === type);
+  }
+
+  function insertInit(array,value) {
+    var result = array;
+    result.unshift(value);
+    return result;
+  }
 
   function parseValueToken(value) {
     return Parsimmon.custom(function(success, failure) {
@@ -36,50 +61,6 @@ this.ast_parser = (function() {
       }
     });
   }
-
-  function insertInit(array,value) {
-    var result = array;
-    result.unshift(value);
-    return result;
-  }
-
-  function matchValueToken(token, value) {
-    return (token !== undefined && token.value === value);
-  }
-
-  function matchTypeToken(token, type) {
-    return (token !== undefined && token.type === type);
-  }
-
-  var tokenType = {
-    LineNumber: "LineNumber",
-    Separator: "Separator",
-    ReservedKeyword: "ReservedKeyword",
-    Identifier: "Identifier",
-    Strings: "Strings",
-    Numbers: "Numbers",
-    Operator: "Operator",
-    WhiteSpace: "WhiteSpace",
-    NewLine: "NewLine"
-  }
-
-  var parseLineNumber = Parsimmon.custom(function(success, failure) {
-    return function(stream, i) {
-      if(stream[i].type === "LineNumber") {
-        return success(i+1,
-          {
-            type: 'LineNumber',
-            value: stream[i].value
-          });
-      }
-      return failure(i, 'expected LineNumber');
-    }
-  });
-
-
-
-
-
 
   function parseLine(line) {
     //parseLinNum = line.lineNumber;
