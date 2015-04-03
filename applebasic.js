@@ -363,7 +363,7 @@ this.applebasic = (function() {
 
       parseLinNum = line.lineNumber;
       tokenIndex = 0;
-      statem = parseStatement(line.tokens);
+      statem = parseStatements(line.tokens);
 
       return {
         lineNumber: line.lineNumber,
@@ -371,7 +371,7 @@ this.applebasic = (function() {
       };
     }
 
-    function parseStatement(tokens) {
+    function parseStatements(tokens) {
       return parseMultStatments(tokens);
     }
 
@@ -816,7 +816,7 @@ this.applebasic = (function() {
       switch(token.value) {
         case 'THEN':
           var stat;
-          stat = parseStatement(tokens);
+          stat = parseStatements(tokens);
           return {
             type: 'IfThen',
             expression: expr,
@@ -2365,7 +2365,7 @@ this.applebasic = (function() {
     //console.log("--------- TOKENIZER ------------");
     tokens = basic.tokenizer(source);
     console.log(tokens);
-    test.parseExpr(tokens);
+    ast_parser.parseExpr(tokens);
     //console.log("--------- PARSE LINES ------------");
     /*lines = basic.divideByLines(tokens);
     tree = basic.ASTparser(lines);
