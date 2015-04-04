@@ -16,6 +16,21 @@ this.runner = (function() {
   var GoSubFLAG = [];
   var ForFLAG = [];
 
+  run.clearAll = function() {
+    clearVariables();
+    clearFunctions();
+    indexI = undefined;
+    runLinNum = undefined;
+    GoToIsLine = false;
+    GoToFLAG = undefined;
+    EndFLAG = undefined;
+    ErrFLAG = undefined;
+    StopFLAG = undefined;
+    InputFLAG = undefined;
+    TraceFLAG = 0;
+    GoSubFLAG = [];
+    ForFLAG = [];
+  }
 
   function matchValueToken(token, value) {
     return (token !== undefined && token.value === value);
@@ -84,11 +99,6 @@ this.runner = (function() {
 
   function clearFunctions() {
     functions = [];
-  }
-
-  run.clearAll = function() {
-    clearVariables();
-    clearFunctions();
   }
 
   function runStatement(expr) {
@@ -261,7 +271,7 @@ this.runner = (function() {
       case 'SHLOAD': // NOT IMPLEMENTED - Load hires shape table from cassette
         throw expr.type + ' not implemented';
       default:
-        throw new SyntaxError(token.value + ' not expected');
+        throw new SyntaxError(expr.type + ' not expected');
     }
   }
 
@@ -759,9 +769,9 @@ this.runner = (function() {
     if(param.length === 0) {
       basic.addOutput('\n');
     } else {
-      var value = runType(param.shift());
+      var value = runType(param[0]);
       basic.addOutput((value.value).toString());
-      runPrint(param);
+      runPrint(param.slice(1));
     }
   }
 
@@ -1071,7 +1081,7 @@ this.runner = (function() {
   }
 
   run.run = function(tree) {
-
+    
     runTree = function(index) {
       if(!(index < tree.length)) {
         return;

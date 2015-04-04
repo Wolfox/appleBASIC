@@ -364,8 +364,7 @@ this.ast_parser = (function() {
   });
 
   var parseInputQuestion = lazy(function() {
-    return Parsimmon.seq(
-      parseUnit(tokenType.Strings, 'String').skip(parseValueToken(';')));
+    return parseUnit(tokenType.Strings, 'String').skip(parseValueToken(';'));
   });
 
   var parseInputAux = lazy(function() {
@@ -388,7 +387,7 @@ this.ast_parser = (function() {
       parseStatement('PRINT').or(parseStatement('?')),
       parseValue,
       parsePrintAux.many(),
-      Parsimmon.succeed('').or(parseValueToken(';'))).map(function(result) {
+      Parsimmon.succeed( '' ).or(parseValueToken(';'))).map(function(result) {
         return {
           type: 'Print',
           parameters: insertInit(result[2], result[1]),
@@ -400,7 +399,9 @@ this.ast_parser = (function() {
   var parsePrintAux = lazy(function() {
     return Parsimmon.seq(
       Parsimmon.alt(parseValueToken(';'), parseValueToken(','), Parsimmon.succeed('')),
-      parseValue);
+      parseValue).map(function(result) {
+        return result[1];
+      });
   });
 
   var parseOnError = lazy(function() { // ONERR GOTO linenum
@@ -478,18 +479,17 @@ this.ast_parser = (function() {
     .map(function(result) {
         return {
           type: 'For',
-          initVariable: identf,
-          initValue: value1,
-          endValue: value2,
-          step: step
+          initVariable: result[1],
+          initValue: result[3],
+          endValue: result[5],
+          step: result[6]
         };
       });
   });
 
   var parseForStep = lazy(function() {
     return Parsimmon.seq(
-      parseStatement('Step'),
-      parseValue);
+      parseStatement('Step').then(parseValue));
   });
 
   var parseNext = lazy(function() { // NEXT [var [, var ...] ]
@@ -550,7 +550,7 @@ this.ast_parser = (function() {
     return Parsimmon.seq(
       parseStatement('DEF'),
       parseFunction('FN'),
-      parseAssigment,
+      parseIdentifier,
       parseParenthesisBegin,
       parseIdentifier,
       parseParenthesisEnd,

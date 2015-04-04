@@ -12,20 +12,6 @@ this.applebasic = (function() {
 
   basic = {};
 
-  var codeOutput;
-
-  var tokenType = {
-    LineNumber: "LineNumber",
-    Separator: "Separator",
-    ReservedKeyword: "ReservedKeyword",
-    Identifier: "Identifier",
-    Strings: "Strings",
-    Numbers: "Numbers",
-    Operator: "Operator",
-    WhiteSpace: "WhiteSpace",
-    NewLine: "NewLine"
-  };
-
   function createToken(value, type) {
     return {
       value:value,
@@ -65,6 +51,26 @@ this.applebasic = (function() {
       regexNewline = /^\r?\n//*,
       regexAnything = /^./*/;
 
+  var tokenType = {
+    LineNumber: "LineNumber",
+    Separator: "Separator",
+    ReservedKeyword: "ReservedKeyword",
+    Identifier: "Identifier",
+    Strings: "Strings",
+    Numbers: "Numbers",
+    Operator: "Operator",
+    WhiteSpace: "WhiteSpace",
+    NewLine: "NewLine"
+  };
+
+  var codeOutput;
+
+
+  basic.compile = function(source, codeOut) {
+    codeOutput = codeOut;
+    tokens = basic.tokenizer(source);
+  }
+
   basic.tokenizer = function(source) {
 
     var tokens = [];
@@ -72,6 +78,22 @@ this.applebasic = (function() {
     basic.divideByLines(tokens);
   }
 
+  basic.divideByLines = function(tokens) {
+    var lines = createLines(tokens,[],[]);
+
+    lines.sort(function(a,b) {
+      return a.lineNumber - b.lineNumber;
+    });
+
+    basic.ASTparser(lines);
+  }
+
+  basic.ASTparser = function(lines) {
+    var tree = ast_parser.parse(lines);
+    runner.clearAll();
+    runner.run(tree);
+  }
+  
   function createTokens(source, isNewLine, returnVal) {
     var nxtToken = getNextToken(source, isNewLine);
     if(!nxtToken) {
@@ -175,16 +197,6 @@ this.applebasic = (function() {
     return source.length === 0;
   }
 
-  basic.divideByLines = function(tokens) {
-    var lines = createLines(tokens,[],[]);
-
-    lines.sort(function(a,b) {
-      return a.lineNumber - b.lineNumber;
-    });
-
-    basic.ASTparser(lines);
-  }
-
   function createLines(allTokens, toCreate, returnVal) {
     if(allTokens.length === 0) {
       if(toCreate.length > 0) {
@@ -211,17 +223,6 @@ this.applebasic = (function() {
     }
     return createLine(tokenList.shift().value, tokenList);
   }
-
-  basic.ASTparser = function(lines) {
-    var tree = ast_parser.parse(lines);
-    runner.run(tree);
-  }
-
-  basic.compile = function(source, codeOut) {
-    codeOutput = codeOut;
-    tokens = basic.tokenizer(source);
-  }
-
 
   basic.addOutput = function(output) {
     if(codeOutput) {
